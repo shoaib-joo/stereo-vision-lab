@@ -1,1 +1,8 @@
-web: uvicorn app:app --workers 2 --timeout-keep-alive 120 --host 0.0.0.0 --port $PORT
+fastapi>=0.110
+uvicorn>=0.29
+python-multipart>=0.0.9
+opencv-python-headless>=4.9
+numpy>=1.26
+Pillow>=10.0
+python-dotenv>=1.0
+jinja2>=3.1
