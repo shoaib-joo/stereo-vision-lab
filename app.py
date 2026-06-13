@@ -75,7 +75,7 @@ async def load_defaults(request: Request):
     shutil.copy(os.path.join(DEFAULTS_DIR, 'right.jpg'), os.path.join(d, 'right.jpg'))
     result = {}
     for side in ('left', 'right'):
-        img = read_img(side)
+        img = read_img(request,side)
         result[f'{side}_thumb'] = img_to_b64(img)
     return JSONResponse(result)
 
