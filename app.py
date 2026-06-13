@@ -42,8 +42,8 @@ def get_session_dir(request: Request):
     os.makedirs(d, exist_ok=True)
     return d
 
-def session_path(request:Request, filename:str):
-    return os.path.join(get_session_dir(), filename)
+def session_path(request: Request, filename: str):
+    return os.path.join(get_session_dir(request), filename)
 
 def save_array(request: Request, name: str, arr):
     np.save(session_path(request, name + '.npy'), arr)
@@ -75,7 +75,7 @@ async def load_defaults(request: Request):
     shutil.copy(os.path.join(DEFAULTS_DIR, 'right.jpg'), os.path.join(d, 'right.jpg'))
     result = {}
     for side in ('left', 'right'):
-        img = read_img(request,side)
+        img = read_img(request, side)
         result[f'{side}_thumb'] = img_to_b64(img)
     return JSONResponse(result)
 
@@ -83,10 +83,10 @@ async def load_defaults(request: Request):
 @app.post('/upload')
 async def upload(request: Request, left: UploadFile = File(None), right: UploadFile = File(None)):
     d = get_session_dir(request)
-    for side,f in [('left', left), ('right', right)]:
+    for side, f in [('left', left), ('right', right)]:
         if f:
             contents = await f.read()
-            with open(os.path.join(d, f'{side}.jpg'), 'wb' ) as out:
+            with open(os.path.join(d, f'{side}.jpg'), 'wb') as out:
                 out.write(contents)
     result = {}
     for side in ('left', 'right'):
@@ -122,11 +122,12 @@ async def run_stereo(request: Request):
         'mean_disp': round(float(disp.mean()), 2),
     })
 
+
 @app.post('/run_features')
-def run_features():
+async def run_features(request: Request):
     try:
-        left_bgr  = read_img('left')
-        right_bgr = read_img('right')
+        left_bgr  = read_img(request, 'left')
+        right_bgr = read_img(request, 'right')
     except ValueError as e:
         return JSONResponse({'error': str(e)}, status_code=400)
 
@@ -134,16 +135,16 @@ def run_features():
     right_g = cv2.cvtColor(right_bgr, cv2.COLOR_BGR2GRAY)
 
     x, xp, kp1, kp2, good = detect_and_match_features(left_g, right_g)
-    save_array('x',  x)
-    save_array('xp', xp)
+    save_array(request, 'x',  x)
+    save_array(request, 'xp', xp)
 
     # serialise keypoints & matches as arrays
-    kp1_arr = np.array([[k.pt[0], k.pt[1]] for k in kp1])
-    kp2_arr = np.array([[k.pt[0], k.pt[1]] for k in kp2])
+    kp1_arr  = np.array([[k.pt[0], k.pt[1]] for k in kp1])
+    kp2_arr  = np.array([[k.pt[0], k.pt[1]] for k in kp2])
     good_arr = np.array([[m.queryIdx, m.trainIdx, m.distance] for m in good])
-    save_array('kp1',  kp1_arr)
-    save_array('kp2',  kp2_arr)
-    save_array('good', good_arr)
+    save_array(request, 'kp1',  kp1_arr)
+    save_array(request, 'kp2',  kp2_arr)
+    save_array(request, 'good', good_arr)
 
     match_img = draw_matches_image(left_bgr, right_bgr, kp1, kp2, good)
     return JSONResponse({'match_img': img_to_b64(match_img), 'n_matches': len(good)})
@@ -158,7 +159,7 @@ async def run_fundamental(request: Request):
         return JSONResponse({'error': str(e)}, status_code=400)
 
     F = fundamental_normalized_8point(x, xp)
-    save_array('F', F)
+    save_array(request, 'F', F)
 
     e_left, e_right = compute_epipoles(F)
     err = epipolar_error(F, x, xp)
@@ -173,13 +174,13 @@ async def run_fundamental(request: Request):
 @app.post('/run_epipolar')
 async def run_epipolar(request: Request):
     try:
-        F  = load_array('F')
-        x  = load_array('x')
-        xp = load_array('xp')
-        left_bgr  = read_img('left')
-        right_bgr = read_img('right')
+        F  = load_array(request, 'F')
+        x  = load_array(request, 'x')
+        xp = load_array(request, 'xp')
+        left_bgr  = read_img(request, 'left')
+        right_bgr = read_img(request, 'right')
     except (FileNotFoundError, ValueError) as e:
-        return JSONResponse({'error': str(e)}), 400
+        return JSONResponse({'error': str(e)}, status_code=400)
 
     data = await request.json()
     n = int(data.get('n_lines', 12))
@@ -190,17 +191,17 @@ async def run_epipolar(request: Request):
 @app.post('/run_rectify')
 async def run_rectify(request: Request):
     try:
-        F  = load_array(request,'F')
-        x  = load_array(request,'x')
-        xp = load_array(request,'xp')
-        left_bgr  = read_img(request,'left')
-        right_bgr = read_img(request,'right')
+        F  = load_array(request, 'F')
+        x  = load_array(request, 'x')
+        xp = load_array(request, 'xp')
+        left_bgr  = read_img(request, 'left')
+        right_bgr = read_img(request, 'right')
     except (FileNotFoundError, ValueError) as e:
-        return JSONResponse({'error': str(e)}), 400
+        return JSONResponse({'error': str(e)}, status_code=400)
 
     left_rect, right_rect, side, _ = rectify_images(left_bgr, right_bgr, x, xp, F)
     if left_rect is None:
-        return JSONResponse({'error': 'Rectification failed — try with more feature matches'}), 500
+        return JSONResponse({'error': 'Rectification failed — try with more feature matches'}, status_code=500)
 
     lr_g = cv2.cvtColor(left_rect,  cv2.COLOR_BGR2GRAY)
     rr_g = cv2.cvtColor(right_rect, cv2.COLOR_BGR2GRAY)
