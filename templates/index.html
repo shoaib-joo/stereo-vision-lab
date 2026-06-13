@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stereo Vision Lab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+
+  :root {
+    --bg:       #0d0f14;
+    --surface:  #161921;
+    --surface2: #1e2230;
+    --border:   #2a2f3f;
+    --accent:   #5b8cff;
+    --accent2:  #ff6b6b;
+    --green:    #4ade80;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --mono:     'IBM Plex Mono', monospace;
+    --sans:     'IBM Plex Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 28px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .logo-mark {
+    width: 34px; height: 34px; background: var(--accent); border-radius: 7px;
+    display: grid; place-items: center; font-family: var(--mono);
+    font-weight: 600; font-size: 13px; color: #fff; letter-spacing: -1px;
+  }
+  header h1 { font-size: 16px; font-weight: 600; }
+  header p  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .header-badge {
+    margin-left: auto; font-size: 10px; padding: 4px 10px;
+    border: 1px solid var(--border); border-radius: 20px; color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .shell { display: grid; grid-template-columns: 248px 1fr; min-height: calc(100vh - 67px); }
+
+  aside {
+    border-right: 1px solid var(--border);
+    padding: 20px 14px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .sidebar-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--muted); padding: 14px 12px 5px;
+  }
+  .step-btn {
+    width: 100%; padding: 9px 12px; background: transparent;
+    border: 1px solid transparent; border-radius: 7px; color: var(--muted);
+    font-family: var(--sans); font-size: 13px; text-align: left;
+    cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all .15s;
+  }
+  .step-btn:hover  { background: var(--surface2); color: var(--text); }
+  .step-btn.active { background: var(--surface2); border-color: var(--accent); color: var(--text); }
+  .step-btn.done   { color: var(--green); }
+  .step-btn.done .dot { background: var(--green); }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted); flex-shrink: 0; transition: background .2s;
+  }
+  .step-btn.active .dot { background: var(--accent); }
+
+  main { padding: 28px 32px; overflow-y: auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .panel-title { font-size: 20px; font-weight: 600; margin-bottom: 5px; }
+  .panel-sub   { font-size: 13px; color: var(--muted); margin-bottom: 22px; line-height: 1.6; }
+
+  /* upload */
+  .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 10px; padding: 28px 14px;
+    text-align: center; cursor: pointer; transition: border-color .2s, background .2s; position: relative;
+  }
+  .drop-zone:hover { border-color: var(--accent); background: rgba(91,140,255,.04); }
+  .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-zone .dz-icon  { font-size: 28px; margin-bottom: 6px; }
+  .drop-zone .dz-label { font-size: 13px; font-weight: 600; }
+  .drop-zone .dz-sub   { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .drop-zone img { max-width: 100%; max-height: 160px; border-radius: 7px; margin-top: 10px; object-fit: cover; }
+
+  .divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--muted); font-size: 12px; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .demo-btn {
+    width: 100%; padding: 13px; border: 1px dashed var(--accent);
+    border-radius: 10px; background: rgba(91,140,255,.05); color: var(--accent);
+    font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: background .15s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .demo-btn:hover { background: rgba(91,140,255,.12); }
+
+  /* controls */
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 20px; }
+  .ctrl-group { display: flex; flex-direction: column; gap: 4px; }
+  .ctrl-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .ctrl-group input[type=range] { width: 150px; accent-color: var(--accent); }
+  .ctrl-group .val { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+
+  .btn {
+    padding: 9px 18px; border-radius: 7px; border: none;
+    font-family: var(--sans); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: opacity .15s, transform .1s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary   { background: var(--accent); color: #fff; }
+  .btn-primary:hover { opacity: .88; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); }
+  .btn:disabled  { opacity: .4; cursor: not-allowed; }
+
+  /* stats */
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 9px 14px; }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+  .stat-val   { font-family: var(--mono); font-size: 17px; font-weight: 600; color: var(--accent); margin-top: 2px; }
+
+  /* images */
+  .wide-img { width: 100%; border-radius: 9px; margin-top: 10px; display: block; }
+  .two-col  { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
+  .two-col img { width: 100%; border-radius: 8px; display: block; }
+  .img-label { font-size: 11px; color: var(--muted); margin-top: 5px; }
+
+  /* matrix */
+  .matrix {
+    font-family: var(--mono); font-size: 12px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px; margin-top: 10px;
+    line-height: 1.9; overflow-x: auto; white-space: pre;
+  }
+
+  /* info box */
+  .info-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); border-radius: 8px;
+    padding: 12px 16px; font-size: 12px; color: var(--muted);
+    line-height: 1.7; margin-bottom: 20px;
+  }
+  .info-box strong { color: var(--text); }
+
+  /* spinner */
+  .spinner {
+    display: none; width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+    border-radius: 50%; animation: spin .5s linear infinite;
+    vertical-align: middle; margin-left: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 9px; padding: 11px 16px; font-size: 13px;
+    opacity: 0; transform: translateY(6px); transition: all .2s;
+    pointer-events: none; z-index: 999; max-width: 280px;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.err  { border-color: var(--accent2); color: var(--accent2); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">SV</div>
+  <div>
+    <h1>Stereo Vision Lab</h1>
+    <p>Epipolar Geometry · Disparity Maps · Rectification</p>
+  </div>
+  <span class="header-badge">v1.0</span>
+</header>
+
+<div class="shell">
+  <aside>
+    <div class="sidebar-label">Pipeline Steps</div>
+    <button class="step-btn active" onclick="showPanel('upload')"      id="nav-upload">      <span class="dot"></span> Images        </button>
+    <button class="step-btn"        onclick="showPanel('stereo')"      id="nav-stereo">      <span class="dot"></span> Stereo Match  </button>
+    <button class="step-btn"        onclick="showPanel('features')"    id="nav-features">    <span class="dot"></span> Features      </button>
+    <button class="step-btn"        onclick="showPanel('fundamental')" id="nav-fundamental"> <span class="dot"></span> Fundamental F </button>
+    <button class="step-btn"        onclick="showPanel('epipolar')"    id="nav-epipolar">    <span class="dot"></span> Epipolar Lines</button>
+    <button class="step-btn"        onclick="showPanel('rectify')"     id="nav-rectify">     <span class="dot"></span> Rectification </button>
+  </aside>
+
+  <main>
+
+    <!-- ── UPLOAD ── -->
+    <div class="panel active" id="panel-upload">
+      <div class="panel-title">Load Stereo Images</div>
+      <div class="panel-sub">Start with the demo bookshelf pair, or upload your own left/right stereo images.</div>
+
+      <button class="demo-btn" onclick="loadDefaults()">
+        📚 Use Demo Images (bookshelf stereo pair)
+        <span class="spinner" id="sp-demo"></span>
+      </button>
+
+      <div class="divider">or upload your own</div>
+
+      <div class="upload-grid">
+        <div class="drop-zone">
+          <input type="file" accept="image/*" onchange="handleFile(this,'left')">
+          <div class="dz-icon">◀</div>
+          <div class="dz-label">Left Image</div>
+          <div class="dz-sub">Click or drag</div>
+          <img id="thumb-left" class="hidden">
+        </div>
+        <div class="drop-zone">
+          <input type="file" accept="image/*" onchange="handleFile(this,'right')">
+          <div class="dz-icon">▶</div>
+          <div class="dz-label">Right Image</div>
+          <div class="dz-sub">Click or drag</div>
+          <img id="thumb-right" class="hidden">
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-primary" id="btn-upload" onclick="uploadImages()" disabled>
+          Load Uploaded Images <span class="spinner" id="sp-upload"></span>
+        </button>
+      </div>
+      <p id="upload-msg" style="font-size:13px;color:var(--muted);margin-top:4px;"></p>
+    </div>
+
+    <!-- ── STEREO MATCHING ── -->
+    <div class="panel" id="panel-stereo">
+      <div class="panel-title">Stereo Matching</div>
+      <div class="panel-sub">SSD block-matching: each pixel in the left image finds its best match in the right image by sliding a window. Larger disparity = closer to the camera.</div>
+
+      <div class="info-box">
+        <strong>Tip:</strong> Larger window sizes are smoother but lose detail at depth boundaries.
+        Increase max disparity if your camera baseline is wide.
+      </div>
+
+      <div class="controls">
+        <div class="ctrl-group">
+          <label>Window Size <span class="val" id="win-val">15</span>px</label>
+          <input type="range" min="5" max="41" step="2" value="15"
+                 oninput="document.getElementById('win-val').textContent=this.value" id="win-slider">
+        </div>
+        <div class="ctrl-group">
+          <label>Max Disparity <span class="val" id="maxd-val">64</span>px</label>
+          <input type="range" min="16" max="128" step="8" value="64"
+                 oninput="document.getElementById('maxd-val').textContent=this.value" id="maxd-slider">
+        </div>
+        <button class="btn btn-primary" onclick="runStereo()">
+          Compute <span class="spinner" id="sp-stereo"></span>
+        </button>
+      </div>
+
+      <div id="stereo-stats" class="stats hidden"></div>
+      <img id="disp-img" class="wide-img hidden">
+    </div>
+
+    <!-- ── FEATURES ── -->
+    <div class="panel" id="panel-features">
+      <div class="panel-title">Feature Detection &amp; Matching</div>
+      <div class="panel-sub">SIFT keypoints are detected in both images, then matched with a brute-force matcher using Lowe's ratio test (threshold 0.75) to keep only reliable matches.</div>
+
+      <div class="controls">
+        <button class="btn btn-primary" onclick="runFeatures()">
+          Detect &amp; Match <span class="spinner" id="sp-features"></span>
+        </button>
+      </div>
+
+      <div id="feat-stats" class="stats hidden"></div>
+      <img id="match-img" class="wide-img hidden">
+    </div>
+
+    <!-- ── FUNDAMENTAL ── -->
+    <div class="panel" id="panel-fundamental">
+      <div class="panel-title">Fundamental Matrix F</div>
+      <div class="panel-sub">Computed via the normalised 8-point algorithm. F encodes the epipolar geometry between the two views — any point x in image 1 satisfies x'ᵀFx = 0 with its correspondence x' in image 2.</div>
+
+      <div class="controls">
+        <button class="btn btn-primary" onclick="runFundamental()">
+          Compute F <span class="spinner" id="sp-fund"></span>
+        </button>
+      </div>
+
+      <div id="fund-stats" class="stats hidden"></div>
+      <div id="fund-matrix" class="hidden"></div>
+    </div>
+
+    <!-- ── EPIPOLAR ── -->
+    <div class="panel" id="panel-epipolar">
+      <div class="panel-title">Epipolar Lines</div>
+      <div class="panel-sub">A point in one image constrains its correspondence to a line in the other image. Coloured dots and their matching epipolar lines are shown — they should intersect the corresponding point.</div>
+
+      <div class="controls">
+        <div class="ctrl-group">
+          <label>Lines to draw <span class="val" id="nlines-val">12</span></label>
+          <input type="range" min="4" max="30" step="2" value="12"
+                 oninput="document.getElementById('nlines-val').textContent=this.value" id="nlines-slider">
+        </div>
+        <button class="btn btn-primary" onclick="runEpipolar()">
+          Draw <span class="spinner" id="sp-epi"></span>
+        </button>
+      </div>
+
+      <div class="two-col hidden" id="epi-imgs">
+        <div><img id="epi-left">  <p class="img-label">Left — epipolar lines from right points</p></div>
+        <div><img id="epi-right"> <p class="img-label">Right — epipolar lines from left points</p></div>
+      </div>
+    </div>
+
+    <!-- ── RECTIFY ── -->
+    <div class="panel" id="panel-rectify">
+      <div class="panel-title">Stereo Rectification</div>
+      <div class="panel-sub">Uncalibrated rectification warps both images so epipolar lines become horizontal scanlines. Stereo matching then becomes a 1-D search — faster and more accurate.</div>
+
+      <div class="controls">
+        <button class="btn btn-primary" onclick="runRectify()">
+          Rectify &amp; Recompute Disparity <span class="spinner" id="sp-rect"></span>
+        </button>
+      </div>
+
+      <div id="rect-out" class="hidden">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:6px;">Rectified pair — red lines should be perfectly horizontal</p>
+        <img id="rect-side" class="wide-img">
+
+        <div class="two-col" style="margin-top:18px;">
+          <div><img id="rect-left">  <p class="img-label">Rectified left</p></div>
+          <div><img id="rect-right"> <p class="img-label">Rectified right</p></div>
+        </div>
+
+        <p style="font-size:12px;color:var(--muted);margin:18px 0 6px;">Disparity map on rectified images</p>
+        <img id="rect-disp" class="wide-img">
+        <div id="rect-stats" class="stats" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const files = { left: null, right: null };
+
+  function showPanel(name) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    document.getElementById('nav-'   + name).classList.add('active');
+  }
+
+  function handleFile(input, side) {
+    const f = input.files[0];
+    if (!f) return;
+    files[side] = f;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('thumb-' + side);
+      img.src = e.target.result;
+      img.classList.remove('hidden');
+    };
+    reader.readAsDataURL(f);
+    document.getElementById('btn-upload').disabled = !(files.left && files.right);
+  }
+
+  async function loadDefaults() {
+    spin('demo', true);
+    try {
+      const r = await fetch('/load_defaults', { method: 'POST' });
+      const d = await r.json();
+      setThumbs(d);
+      markDone('upload');
+      toast('Demo images loaded — run any pipeline step');
+    } catch(e) { toast('Failed: ' + e, true); }
+    spin('demo', false);
+  }
+
+  async function uploadImages() {
+    const fd = new FormData();
+    fd.append('left',  files.left);
+    fd.append('right', files.right);
+    spin('upload', true);
+    try {
+      const r = await fetch('/upload', { method: 'POST', body: fd });
+      const d = await r.json();
+      setThumbs(d);
+      markDone('upload');
+      toast('Images loaded — run any pipeline step');
+    } catch(e) { toast('Upload failed: ' + e, true); }
+    spin('upload', false);
+  }
+
+  function setThumbs(d) {
+    ['left','right'].forEach(s => {
+      const img = document.getElementById('thumb-' + s);
+      img.src = 'data:image/png;base64,' + d[s + '_thumb'];
+      img.classList.remove('hidden');
+    });
+    document.getElementById('upload-msg').textContent = '✓ Images ready — proceed with any step on the left.';
+    document.getElementById('upload-msg').style.color = 'var(--green)';
+  }
+
+  async function runStereo() {
+    spin('stereo', true);
+    try {
+      const r = await fetch('/run_stereo', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          window_size:   +document.getElementById('win-slider').value,
+          max_disparity: +document.getElementById('maxd-slider').value
+        })
+      });
+      const d = await r.json();
+      if (d.error) { toast(d.error, true); return; }
+      showImg('disp-img', d.disparity_img);
+      showStats('stereo-stats', [
+        ['Time', d.elapsed + 's'], ['Min', d.min_disp.toFixed(0) + 'px'],
+        ['Max', d.max_disp.toFixed(0) + 'px'], ['Mean', d.mean_disp + 'px'],
+      ]);
+      markDone('stereo');
+    } catch(e) { toast('Error: ' + e, true); }
+    spin('stereo', false);
+  }
+
+  async function runFeatures() {
+    spin('features', true);
+    try {
+      const r = await fetch('/run_features', { method: 'POST' });
+      const d = await r.json();
+      if (d.error) { toast(d.error, true); return; }
+      showImg('match-img', d.match_img);
+      showStats('feat-stats', [['Matched Points', d.n_matches]]);
+      markDone('features');
+    } catch(e) { toast('Error: ' + e, true); }
+    spin('features', false);
+  }
+
+  async function runFundamental() {
+    spin('fund', true);
+    try {
+      const r = await fetch('/run_fundamental', { method: 'POST' });
+      const d = await r.json();
+      if (d.error) { toast(d.error, true); return; }
+      showStats('fund-stats', [
+        ['Mean Epipolar Error', d.mean_error],
+        ['Left Epipole',  `(${d.epipole_left[0]},  ${d.epipole_left[1]})`],
+        ['Right Epipole', `(${d.epipole_right[0]}, ${d.epipole_right[1]})`],
+      ]);
+      const rows = d.F.map(row => '  ' + row.map(v => v.toExponential(4).padStart(13)).join('  ')).join('\n');
+      const m = document.getElementById('fund-matrix');
+      m.innerHTML = `<div class="matrix">F =\n${rows}</div>`;
+      m.classList.remove('hidden');
+      markDone('fundamental');
+    } catch(e) { toast('Error: ' + e, true); }
+    spin('fund', false);
+  }
+
+  async function runEpipolar() {
+    spin('epi', true);
+    try {
+      const r = await fetch('/run_epipolar', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ n_lines: +document.getElementById('nlines-slider').value })
+      });
+      const d = await r.json();
+      if (d.error) { toast(d.error, true); return; }
+      showImg('epi-left',  d.epi_left);
+      showImg('epi-right', d.epi_right);
+      document.getElementById('epi-imgs').classList.remove('hidden');
+      markDone('epipolar');
+    } catch(e) { toast('Error: ' + e, true); }
+    spin('epi', false);
+  }
+
+  async function runRectify() {
+    spin('rect', true);
+    try {
+      const r = await fetch('/run_rectify', { method: 'POST' });
+      const d = await r.json();
+      if (d.error) { toast(d.error, true); return; }
+      showImg('rect-side',  d.side_by_side);
+      showImg('rect-left',  d.left_rect);
+      showImg('rect-right', d.right_rect);
+      showImg('rect-disp',  d.disparity_rect);
+      showStats('rect-stats', [['Mean Disparity (rectified)', d.mean_disp_rect + 'px']]);
+      document.getElementById('rect-out').classList.remove('hidden');
+      markDone('rectify');
+    } catch(e) { toast('Error: ' + e, true); }
+    spin('rect', false);
+  }
+
+  function showImg(id, b64) {
+    const img = document.getElementById(id);
+    img.src = 'data:image/png;base64,' + b64;
+    img.classList.remove('hidden');
+  }
+
+  function showStats(id, pairs) {
+    const el = document.getElementById(id);
+    el.innerHTML = pairs.map(([l,v]) =>
+      `<div class="stat"><div class="stat-label">${l}</div><div class="stat-val">${v}</div></div>`
+    ).join('');
+    el.classList.remove('hidden');
+  }
+
+  function spin(id, on) {
+    const s = document.getElementById('sp-' + id);
+    if (s) s.style.display = on ? 'inline-block' : 'none';
+  }
+
+  function markDone(name) {
+    document.getElementById('nav-' + name).classList.add('done');
+  }
+
+  function toast(msg, err=false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'show' + (err ? ' err' : '');
+    setTimeout(() => t.className = '', 3200);
+  }
+</script>
+</body>
+</html>
